@@ -41,4 +41,4 @@ Before you begin, ensure you have the following tools installed:
 
 2. **Apply your infrastructure changes.:**
     ```bash
-   terraform apply
+   terraform apply 
