@@ -33,12 +33,3 @@ resource "google_compute_route" "webapp_route" {
   priority         = 1000
   next_hop_gateway = "default-internet-gateway"
 }
-
-# Output variables
-output "webapp_subnet_cidr" {
-  value = google_compute_subnetwork.webapp_subnet.ip_cidr_range
-}
-
-output "db_subnet_cidr" {
-  value = google_compute_subnetwork.db_subnet.ip_cidr_range
-}
