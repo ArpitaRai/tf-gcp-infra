@@ -17,6 +17,9 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v2
 
+    - name: Authenticate with Google Cloud
+      run: gcloud auth application-default login
+
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v1
       with:
