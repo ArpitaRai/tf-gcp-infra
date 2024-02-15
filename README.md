@@ -14,6 +14,10 @@ Before you begin, ensure you have the following tools installed:
 1. **Enable GCP Service APIs:**
    - Go to the [Google Cloud Console](https://console.cloud.google.com/).
    - Navigate to the project and enable the required services (APIs) manually.
+   - Once services are enabled, it may take 10-15 minutes for them to work.
+
+   **Note:**
+   - Ensure to enable the [Compute Engine API](https://cloud.google.com/compute/docs/reference/rest) for creating and managing virtual machine instances, networks, and related resources.
 
 2. **Networking Infrastructure Setup:**
    - Create a Virtual Private Cloud (VPC) with specific requirements.
@@ -39,6 +43,10 @@ Before you begin, ensure you have the following tools installed:
    ```bash
    terraform init
 
-2. **Apply your infrastructure changes.:**
+2. **Validate your infrastructure changes.:**
+    ```bash
+   terraform validate
+
+3. **Apply your infrastructure changes.:**
     ```bash
    terraform apply 
