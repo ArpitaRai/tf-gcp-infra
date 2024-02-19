@@ -28,7 +28,7 @@ resource "google_compute_subnetwork" "db_subnet" {
 }
 
 # Route creation for webapp subnet
-resource "google_compute_route" "webapp_route" {
+resource "google_compute_route" "webapp_route" 
   name             = "webapp-route"
   network          = google_compute_network.vpc.self_link
   dest_range       = var.dest_range
