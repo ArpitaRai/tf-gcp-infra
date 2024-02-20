@@ -1,7 +1,7 @@
 # Vars file (vars.tf) to store variable values
 variable "project_id" {
   description = "Google Cloud Project ID"
-  default     = "bright-fastness-412105"
+  default     = "dev-gcp-414704"
 }
 
 variable "region" {
@@ -39,6 +39,10 @@ variable "proiority" {
   default     = 1000
 }
 
+variable "routing_mode" {
+  description = "Routing mode"
+  default     = "REGIONAL"
+}
 
 
 
