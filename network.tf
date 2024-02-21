@@ -50,14 +50,14 @@ resource "google_compute_instance" "webapp-instance" {
   name         = "webapp-instance"
 
   network_interface {
-       access_config {
+    access_config {
       network_tier = var.network_tier
     }
 
     queue_count = 0
     stack_type  = var.stack_type
-    network    = google_compute_network.vpc.self_link
-    subnetwork = google_compute_subnetwork.webapp_subnet.self_link
+    network     = google_compute_network.vpc.self_link
+    subnetwork  = google_compute_subnetwork.webapp_subnet.self_link
   }
 
   zone = var.zone
