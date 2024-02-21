@@ -44,6 +44,33 @@ variable "routing_mode" {
   default     = "REGIONAL"
 }
 
+variable "source_ranges" {
+  default = ["0.0.0.0/0"]
+}
+
+variable "instance_tags" {
+  default = ["web-application"]
+}
+
+variable "allowed_firewall_name" {
+  default = "allow-app-traffic"
+}
+
+variable "denied_firewall_name" {
+  default = "deny-ssh-from-internet"
+}
+variable "allowed_ports" {
+  default = ["8080"] # Add more ports as needed
+}
+
+variable "denied_ports" {
+  default = ["22"] # Add more ports as needed
+}
+
+variable "protocol" {
+  default = "tcp"
+}
+
 
 
 
