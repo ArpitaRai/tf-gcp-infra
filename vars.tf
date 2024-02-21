@@ -71,7 +71,34 @@ variable "protocol" {
   default = "tcp"
 }
 
+variable "instance_image" {
+  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-02-21-01-55-31"
+}
 
+variable "image_size" {
+  default = 100
+}
 
+variable "image_type" {
+  default = "pd-balanced"
+}
 
+variable "zone" {
+  default = "us-east1-b"
+}
 
+variable "script_file" {
+  default = "start-service.sh"
+}
+
+variable "stack_type" {
+  default = "IPV4_ONLY"
+}
+
+variable "network_tier" {
+  default = "PREMIUM"
+}
+
+variable "machine_type" {
+  default = "e2-micro"
+}

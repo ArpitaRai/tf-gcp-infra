@@ -39,31 +39,31 @@ resource "google_compute_route" "webapp_route" {
 resource "google_compute_instance" "webapp-instance" {
   boot_disk {
     initialize_params {
-      image = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-02-21-01-55-31"
-      size  = 100
-      type  = "pd-balanced"
+      image = var.instance_image
+      size  = var.image_size
+      type  = var.image_type
     }
 
   }
 
-  machine_type = "e2-micro"
+  machine_type = var.machine_type
   name         = "webapp-instance"
 
   network_interface {
        access_config {
-      network_tier = "PREMIUM"
+      network_tier = var.network_tier
     }
 
     queue_count = 0
-    stack_type  = "IPV4_ONLY"
+    stack_type  = var.stack_type
     network    = google_compute_network.vpc.self_link
     subnetwork = google_compute_subnetwork.webapp_subnet.self_link
   }
 
-  zone = "us-east1-b"
+  zone = var.zone
   tags = var.instance_tags
   metadata = {
-    startup-script = file("start-service.sh")
+    startup-script = file(var.script_file)
   }
 
 }
