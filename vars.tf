@@ -1,4 +1,3 @@
-# Vars file (vars.tf) to store variable values
 variable "project_id" {
   description = "Google Cloud Project ID"
   default     = "dev-gcp-414704"
@@ -59,12 +58,13 @@ variable "allowed_firewall_name" {
 variable "denied_firewall_name" {
   default = "deny-ssh-from-internet"
 }
+
 variable "allowed_ports" {
-  default = ["8080"] # Add more ports as needed
+  default = "8080" # Add more ports as needed
 }
 
 variable "denied_ports" {
-  default = ["22"] # Add more ports as needed
+  default = "22" # Add more ports as needed
 }
 
 variable "protocol" {
@@ -72,7 +72,7 @@ variable "protocol" {
 }
 
 variable "instance_image" {
-  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-02-21-01-55-31"
+  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-02-21-19-21-04"
 }
 
 variable "image_size" {

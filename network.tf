@@ -74,7 +74,7 @@ resource "google_compute_firewall" "allow_app_traffic" {
   network = google_compute_network.vpc.self_link
   allow {
     protocol = var.protocol
-    ports    = ["8080"] # Specify the port your application listens to
+    ports    = [var.allowed_ports] # Specify the port your application listens to
   }
   target_tags   = var.instance_tags
   source_ranges = var.source_ranges # Allow traffic from any IP address on the internet
@@ -87,7 +87,7 @@ resource "google_compute_firewall" "deny_ssh_from_internet" {
 
   deny {
     protocol = var.protocol
-    ports    = ["22"] # SSH port
+    ports    = [var.denied_ports] # SSH port
   }
   target_tags   = var.instance_tags
   source_ranges = var.source_ranges # Deny traffic from any IP address on the internet
