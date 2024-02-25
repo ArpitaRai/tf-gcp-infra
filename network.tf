@@ -4,6 +4,13 @@ provider "google" {
   region  = var.region
 }
 
+# Enable Service Networking API
+resource "google_project_service" "servicenetworking" {
+  project = var.project_id
+  service = "servicenetworking.googleapis.com"
+}
+
+
 # VPC creation
 resource "google_compute_network" "vpc" {
   name                            = var.vpc_name
@@ -14,17 +21,39 @@ resource "google_compute_network" "vpc" {
 
 # Subnet creation
 resource "google_compute_subnetwork" "webapp_subnet" {
-  name          = "webapp"
-  ip_cidr_range = var.webapp_subnet_cidr
-  network       = google_compute_network.vpc.self_link
-  region        = var.region
+  name                     = "webapp"
+  ip_cidr_range            = var.webapp_subnet_cidr
+  network                  = google_compute_network.vpc.self_link
+  region                   = var.region
+  private_ip_google_access = true # Enable private IP Google access
+
 }
 
 resource "google_compute_subnetwork" "db_subnet" {
-  name          = "db"
-  ip_cidr_range = var.db_subnet_cidr
-  network       = google_compute_network.vpc.self_link
-  region        = var.region
+  name                     = "db"
+  ip_cidr_range            = var.db_subnet_cidr
+  network                  = google_compute_network.vpc.self_link
+  region                   = var.region
+  private_ip_google_access = true # Enable private IP Google access
+
+}
+
+# Internal IP for private service access
+resource "google_compute_global_address" "private_service_access" {
+  name         = "global-psconnect-ip"
+  address_type = "INTERNAL"
+  purpose      = "PRIVATE_SERVICE_CONNECT"
+  network      = google_compute_network.vpc.self_link
+  address      = "10.3.0.5"
+}
+
+# Forwarding rule for private service access
+resource "google_compute_global_forwarding_rule" "private_service_access" {
+  name                  = "globalrule"
+  target                = "all-apis"
+  network               = google_compute_network.vpc.self_link
+  ip_address            = google_compute_global_address.private_service_access.id
+  load_balancing_scheme = ""
 }
 
 # Route creation for webapp subnet
