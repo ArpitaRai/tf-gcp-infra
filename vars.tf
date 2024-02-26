@@ -72,7 +72,7 @@ variable "protocol" {
 }
 
 variable "instance_image" {
-  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-02-21-19-21-04"
+  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-02-25-21-48-51"
 }
 
 variable "image_size" {
@@ -101,4 +101,31 @@ variable "network_tier" {
 
 variable "machine_type" {
   default = "e2-micro"
+}
+
+variable "sql-db" {
+  default = "MYSQL_8_0"
+}
+variable "purpose" {
+  default = "VPC_PEERING"
+}
+
+variable "address_type" {
+  default = "INTERNAL"
+}
+
+variable "prefix_length" {
+  default = 16
+}
+
+variable "tier" {
+  default = "db-f1-micro"
+}
+
+variable "password_length" {
+  default = 16
+}
+
+variable "api_service" {
+  default = "servicenetworking.googleapis.com"
 }

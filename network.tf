@@ -5,10 +5,10 @@ provider "google" {
 }
 
 # Enable Service Networking API
-resource "google_project_service" "servicenetworking" {
-  project = var.project_id
-  service = "servicenetworking.googleapis.com"
-}
+# resource "google_project_service" "servicenetworking" {
+#   project = var.project_id
+#   service = "servicenetworking.googleapis.com"
+# }
 
 
 # VPC creation
@@ -38,23 +38,69 @@ resource "google_compute_subnetwork" "db_subnet" {
 
 }
 
-# Internal IP for private service access
-resource "google_compute_global_address" "private_service_access" {
-  name         = "global-psconnect-ip"
-  address_type = "INTERNAL"
-  purpose      = "PRIVATE_SERVICE_CONNECT"
-  network      = google_compute_network.vpc.self_link
-  address      = "10.3.0.5"
+
+#------------------------------------------------------------------------------------------------------------
+resource "google_compute_global_address" "private_ip_address" {
+  name          = "private-ip-address"
+  purpose       =  var.purpose
+  address_type  =  var.address_type
+  prefix_length = var.prefix_length
+  network       = google_compute_network.vpc.id
 }
 
-# Forwarding rule for private service access
-resource "google_compute_global_forwarding_rule" "private_service_access" {
-  name                  = "globalrule"
-  target                = "all-apis"
-  network               = google_compute_network.vpc.self_link
-  ip_address            = google_compute_global_address.private_service_access.id
-  load_balancing_scheme = ""
+resource "google_service_networking_connection" "default" {
+  network                 = google_compute_network.vpc.id
+  service                 = var.api_service
+  reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
 }
+
+resource "google_sql_database_instance" "instance" {
+  name             = "private-ip-sql-instance"
+  region           = var.region
+  database_version = var.sql-db
+
+  depends_on = [google_service_networking_connection.default]
+
+  settings {
+    tier = var.tier
+    ip_configuration {
+      ipv4_enabled    = "false"
+      private_network = google_compute_network.vpc.self_link
+    }
+  }
+
+  deletion_protection = false
+}
+
+# Randomly generated password
+resource "random_password" "generated_password" {
+  length           = var.password_length
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+
+}
+resource "google_compute_network_peering_routes_config" "peering_routes" {
+  peering              = google_service_networking_connection.default.peering
+  network              = google_compute_network.vpc.name
+  import_custom_routes = true
+  export_custom_routes = true
+}
+
+resource "google_sql_database" "database" {
+  name     = "webapp"
+  instance = google_sql_database_instance.instance.name
+}
+
+#Cloud SQL user creation
+resource "google_sql_user" "database_user" {
+  name     = "webapp"
+  instance = google_sql_database_instance.instance.name
+  password = random_password.generated_password.result
+}
+
+
+#------------------------------------------------------------------------------------------------------------
+
 
 # Route creation for webapp subnet
 resource "google_compute_route" "webapp_route" {
@@ -91,9 +137,28 @@ resource "google_compute_instance" "webapp-instance" {
 
   zone = var.zone
   tags = var.instance_tags
-  metadata = {
-    startup-script = file(var.script_file)
-  }
+ metadata = {
+  startup-script = <<-EOT
+    #!/bin/bash
+    set -e
+
+    # Change directory to /opt/csye6225dir
+    cd /opt/csye6225dir
+
+    # Create a .env file with database connection details
+    if [ ! -f /opt/.env ]; then
+      echo "MYSQL_DATABASE=${google_sql_database.database.name}" >> /opt/csye6225dir/.env
+      echo "MYSQL_USER=${google_sql_user.database_user.name}" >> /opt/csye6225dir/.env
+      echo "MYSQL_PASSWORD=${google_sql_user.database_user.password}" >> /opt/csye6225dir/.env
+      echo "MYSQL_HOST=${google_sql_database_instance.instance.private_ip_address}" >> /opt/csye6225dir/.env
+    fi
+    # Run npm install with elevated privileges
+    sudo npm install
+
+    # Include the external script content
+    $(cat ${file(var.script_file)})
+  EOT
+}
 
 }
 
@@ -120,4 +185,17 @@ resource "google_compute_firewall" "deny_ssh_from_internet" {
   }
   target_tags   = var.instance_tags
   source_ranges = var.source_ranges # Deny traffic from any IP address on the internet
+}
+
+resource "google_compute_firewall" "allow_ssh" {
+  name    = "allow-ssh"
+  network = google_compute_network.vpc.self_link
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["web-application"]
 }
