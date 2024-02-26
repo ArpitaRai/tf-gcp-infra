@@ -42,8 +42,8 @@ resource "google_compute_subnetwork" "db_subnet" {
 #------------------------------------------------------------------------------------------------------------
 resource "google_compute_global_address" "private_ip_address" {
   name          = "private-ip-address"
-  purpose       =  var.purpose
-  address_type  =  var.address_type
+  purpose       = var.purpose
+  address_type  = var.address_type
   prefix_length = var.prefix_length
   network       = google_compute_network.vpc.id
 }
@@ -137,8 +137,8 @@ resource "google_compute_instance" "webapp-instance" {
 
   zone = var.zone
   tags = var.instance_tags
- metadata = {
-  startup-script = <<-EOT
+  metadata = {
+    startup-script = <<-EOT
     #!/bin/bash
     set -e
 
@@ -158,7 +158,7 @@ resource "google_compute_instance" "webapp-instance" {
     # Include the external script content
     $(cat ${file(var.script_file)})
   EOT
-}
+  }
 
 }
 
