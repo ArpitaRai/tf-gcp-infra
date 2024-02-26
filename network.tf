@@ -138,7 +138,7 @@ resource "google_compute_instance" "webapp-instance" {
   zone = var.zone
   tags = var.instance_tags
   metadata = {
-    startup-script = <<-EOT
+  startup-script = <<-EOT
     #!/bin/bash
     set -e
 
@@ -158,7 +158,7 @@ resource "google_compute_instance" "webapp-instance" {
     # Include the external script content
     $(cat ${file(var.script_file)})
   EOT
-  }
+}
 
 }
 
