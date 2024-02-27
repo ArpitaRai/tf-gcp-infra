@@ -40,6 +40,7 @@ resource "google_compute_subnetwork" "db_subnet" {
 
 
 #------------------------------------------------------------------------------------------------------------
+# Use to create a global external IP address
 resource "google_compute_global_address" "private_ip_address" {
   name          = "private-ip-address"
   purpose       = var.purpose
@@ -48,18 +49,20 @@ resource "google_compute_global_address" "private_ip_address" {
   network       = google_compute_network.vpc.id
 }
 
-resource "google_service_networking_connection" "default" {
+# Plays a key role in establishing a connection between a Virtual Private Cloud (VPC) network and 
+# a service provided by Google or a third-party.
+resource "google_service_networking_connection" "networ_connection" {
   network                 = google_compute_network.vpc.id
   service                 = var.api_service
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
 }
 
-resource "google_sql_database_instance" "instance" {
+resource "google_sql_database_instance" "db_instance" {
   name             = "private-ip-sql-instance"
   region           = var.region
   database_version = var.sql-db
 
-  depends_on = [google_service_networking_connection.default]
+  depends_on = [google_service_networking_connection.networ_connection]
 
   settings {
     tier = var.tier
@@ -79,8 +82,9 @@ resource "random_password" "generated_password" {
   override_special = "!#$%&*()-_=+[]{}<>:?"
 
 }
+# Use to configure custom route advertisements for a network peering connection
 resource "google_compute_network_peering_routes_config" "peering_routes" {
-  peering              = google_service_networking_connection.default.peering
+  peering              = google_service_networking_connection.networ_connection.peering
   network              = google_compute_network.vpc.name
   import_custom_routes = true
   export_custom_routes = true
@@ -88,13 +92,13 @@ resource "google_compute_network_peering_routes_config" "peering_routes" {
 
 resource "google_sql_database" "database" {
   name     = "webapp"
-  instance = google_sql_database_instance.instance.name
+  instance = google_sql_database_instance.db_instance.name
 }
 
 #Cloud SQL user creation
 resource "google_sql_user" "database_user" {
   name     = "webapp"
-  instance = google_sql_database_instance.instance.name
+  instance = google_sql_database_instance.db_instance.name
   password = random_password.generated_password.result
 }
 
@@ -104,6 +108,9 @@ resource "google_sql_user" "database_user" {
 
 # Route creation for webapp subnet
 resource "google_compute_route" "webapp_route" {
+  depends_on = [
+    google_sql_database_instance.db_instance,
+  ]
   name             = "webapp-route"
   network          = google_compute_network.vpc.self_link
   dest_range       = var.dest_range
@@ -138,7 +145,7 @@ resource "google_compute_instance" "webapp-instance" {
   zone = var.zone
   tags = var.instance_tags
   metadata = {
-  startup-script = <<-EOT
+    startup-script = <<-EOT
     #!/bin/bash
     set -e
 
@@ -150,7 +157,7 @@ resource "google_compute_instance" "webapp-instance" {
       echo "MYSQL_DATABASE=${google_sql_database.database.name}" >> /opt/csye6225dir/.env
       echo "MYSQL_USER=${google_sql_user.database_user.name}" >> /opt/csye6225dir/.env
       echo "MYSQL_PASSWORD=${google_sql_user.database_user.password}" >> /opt/csye6225dir/.env
-      echo "MYSQL_HOST=${google_sql_database_instance.instance.private_ip_address}" >> /opt/csye6225dir/.env
+      echo "MYSQL_HOST=${google_sql_database_instance.db_instance.private_ip_address}" >> /opt/csye6225dir/.env
     fi
     # Run npm install with elevated privileges
     sudo npm install
@@ -187,15 +194,15 @@ resource "google_compute_firewall" "deny_ssh_from_internet" {
   source_ranges = var.source_ranges # Deny traffic from any IP address on the internet
 }
 
-resource "google_compute_firewall" "allow_ssh" {
-  name    = "allow-ssh"
-  network = google_compute_network.vpc.self_link
+# resource "google_compute_firewall" "allow_ssh" {
+#   name    = "allow-ssh"
+#   network = google_compute_network.vpc.self_link
 
-  allow {
-    protocol = "tcp"
-    ports    = ["22"]
-  }
+#   allow {
+#     protocol = "tcp"
+#     ports    = ["22"]
+#   }
 
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["web-application"]
-}
+#   source_ranges = ["0.0.0.0/0"]
+#   target_tags   = ["web-application"]
+# }
