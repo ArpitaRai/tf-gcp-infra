@@ -165,7 +165,7 @@ resource "google_compute_instance" "webapp-instance" {
     # Include the external script content
     $(cat ${file(var.script_file)})
   EOT
-}
+  }
 
 }
 
