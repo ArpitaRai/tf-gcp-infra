@@ -172,13 +172,32 @@ resource "google_compute_instance" "webapp-instance" {
 
 }
 
+#Firewall rules for the webapp
+
+# Firewall explicitly denies all traffic
+resource "google_compute_firewall" "webapp_denyall_firewall" {
+  name        = var.webapp_denyall_firewall_name
+  network     = google_compute_network.vpc.self_link
+  target_tags = var.instance_tags
+  priority    = var.higher_priority
+
+  deny {
+    protocol = var.protocol
+    ports    = []
+  }
+
+  source_ranges = var.source_ranges
+}
+
 # Create a firewall rule to allow traffic to your application port
 resource "google_compute_firewall" "allow_app_traffic" {
-  name    = var.allowed_firewall_name
-  network = google_compute_network.vpc.self_link
+  name     = var.allowed_firewall_name
+  network  = google_compute_network.vpc.self_link
+  priority = var.lower_priority
+
   allow {
     protocol = var.protocol
-    ports    = [var.allowed_ports] # Specify the port your application listens to
+    ports    = [var.allowed_ports, var.allowed_sql_port] # Specify the port your application listens to
   }
   target_tags   = var.instance_tags
   source_ranges = var.source_ranges # Allow traffic from any IP address on the internet
@@ -186,8 +205,10 @@ resource "google_compute_firewall" "allow_app_traffic" {
 
 # Create a firewall rule to disallow traffic to SSH port from the internet
 resource "google_compute_firewall" "deny_ssh_from_internet" {
-  name    = var.denied_firewall_name
-  network = google_compute_network.vpc.self_link
+  name     = var.denied_firewall_name
+  network  = google_compute_network.vpc.self_link
+  priority = var.lower_priority
+
 
   deny {
     protocol = var.protocol

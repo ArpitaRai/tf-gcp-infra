@@ -181,3 +181,19 @@ variable "webapp_route_name" {
 variable "webapp_instance_name" {
   default = "webapp-instance"
 }
+
+variable "allowed_sql_port" {
+  default = "3060"
+}
+
+variable "webapp_denyall_firewall_name" {
+  default = "webapp-denyall-irewall"
+}
+
+variable "higher_priority" {
+  default = 1000
+}
+
+variable "lower_priority" {
+  default = 999
+}
