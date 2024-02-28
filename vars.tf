@@ -72,7 +72,7 @@ variable "protocol" {
 }
 
 variable "instance_image" {
-  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-02-27-01-57-11"
+  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-02-28-06-15-49"
 }
 
 variable "image_size" {
@@ -128,4 +128,56 @@ variable "password_length" {
 
 variable "api_service" {
   default = "servicenetworking.googleapis.com"
+}
+
+variable "disk_type" {
+  default = "pd-ssd"
+}
+
+variable "disk_size" {
+  default = 100
+}
+
+variable "tf_version" {
+  default = ">= 4.35.0"
+}
+
+variable "availability_type" {
+  default = "REGIONAL"
+}
+
+variable "webapp_subnet_name" {
+  default = "webapp"
+}
+
+variable "db_subnet_name" {
+  default = "db"
+}
+
+variable "private_ip_address_name" {
+  default = "private-ip-address"
+}
+
+variable "db_instance_name" {
+  default = "private-ip-sql-instance"
+}
+
+variable "special_character" {
+  default = "!#$%&*()-_=+[]{}<>:?"
+}
+
+variable "database_name" {
+  default = "webapp"
+}
+
+variable "db_user_name" {
+  default = "webapp"
+}
+
+variable "webapp_route_name" {
+  default = "webapp-route"
+}
+
+variable "webapp_instance_name" {
+  default = "webapp-instance"
 }

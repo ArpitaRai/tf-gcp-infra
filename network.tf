@@ -21,7 +21,7 @@ resource "google_compute_network" "vpc" {
 
 # Subnet creation
 resource "google_compute_subnetwork" "webapp_subnet" {
-  name                     = "webapp"
+  name                     = var.webapp_subnet_name
   ip_cidr_range            = var.webapp_subnet_cidr
   network                  = google_compute_network.vpc.self_link
   region                   = var.region
@@ -30,7 +30,7 @@ resource "google_compute_subnetwork" "webapp_subnet" {
 }
 
 resource "google_compute_subnetwork" "db_subnet" {
-  name                     = "db"
+  name                     = var.db_subnet_name
   ip_cidr_range            = var.db_subnet_cidr
   network                  = google_compute_network.vpc.self_link
   region                   = var.region
@@ -39,10 +39,11 @@ resource "google_compute_subnetwork" "db_subnet" {
 }
 
 
+
 #------------------------------------------------------------------------------------------------------------
 # Use to create a global external IP address
 resource "google_compute_global_address" "private_ip_address" {
-  name          = "private-ip-address"
+  name          = var.private_ip_address_name
   purpose       = var.purpose
   address_type  = var.address_type
   prefix_length = var.prefix_length
@@ -58,28 +59,34 @@ resource "google_service_networking_connection" "networ_connection" {
 }
 
 resource "google_sql_database_instance" "db_instance" {
-  name             = "private-ip-sql-instance"
-  region           = var.region
-  database_version = var.sql-db
-
-  depends_on = [google_service_networking_connection.networ_connection]
+  name                = var.db_instance_name
+  region              = var.region
+  database_version    = var.sql-db
+  depends_on          = [google_service_networking_connection.networ_connection]
+  deletion_protection = false
 
   settings {
-    tier = var.tier
+    tier              = var.tier
+    disk_type         = var.disk_type
+    disk_size         = var.disk_size
+    availability_type = var.availability_type
+    backup_configuration {
+      enabled            = true
+      binary_log_enabled = true
+    }
+
     ip_configuration {
-      ipv4_enabled    = "false"
+      ipv4_enabled    = false
       private_network = google_compute_network.vpc.self_link
     }
   }
-
-  deletion_protection = false
 }
 
 # Randomly generated password
 resource "random_password" "generated_password" {
   length           = var.password_length
   special          = true
-  override_special = "!#$%&*()-_=+[]{}<>:?"
+  override_special = var.special_character
 
 }
 # Use to configure custom route advertisements for a network peering connection
@@ -91,13 +98,13 @@ resource "google_compute_network_peering_routes_config" "peering_routes" {
 }
 
 resource "google_sql_database" "database" {
-  name     = "webapp"
+  name     = var.database_name
   instance = google_sql_database_instance.db_instance.name
 }
 
 #Cloud SQL user creation
 resource "google_sql_user" "database_user" {
-  name     = "webapp"
+  name     = var.db_user_name
   instance = google_sql_database_instance.db_instance.name
   password = random_password.generated_password.result
 }
@@ -111,7 +118,7 @@ resource "google_compute_route" "webapp_route" {
   depends_on = [
     google_sql_database_instance.db_instance,
   ]
-  name             = "webapp-route"
+  name             = var.webapp_route_name
   network          = google_compute_network.vpc.self_link
   dest_range       = var.dest_range
   priority         = var.proiority
@@ -129,7 +136,7 @@ resource "google_compute_instance" "webapp-instance" {
   }
 
   machine_type = var.machine_type
-  name         = "webapp-instance"
+  name         = var.webapp_instance_name
 
   network_interface {
     access_config {
@@ -149,20 +156,16 @@ resource "google_compute_instance" "webapp-instance" {
     #!/bin/bash
     set -e
 
-    # Change directory to /opt/csye6225dir
-    cd /opt/csye6225dir
+    # Change directory to /opt
+    cd /opt
 
     # Create a .env file with database connection details
     if [ ! -f /opt/.env ]; then
-      echo "MYSQL_DATABASE=${google_sql_database.database.name}" >> /opt/csye6225dir/.env
-      echo "MYSQL_USER=${google_sql_user.database_user.name}" >> /opt/csye6225dir/.env
-      echo "MYSQL_PASSWORD=${google_sql_user.database_user.password}" >> /opt/csye6225dir/.env
-      echo "MYSQL_HOST=${google_sql_database_instance.db_instance.private_ip_address}" >> /opt/csye6225dir/.env
+      echo "MYSQL_DATABASE=${google_sql_database.database.name}" >> /opt/.env
+      echo "MYSQL_USER=${google_sql_user.database_user.name}" >> /opt/.env
+      echo "MYSQL_PASSWORD=${google_sql_user.database_user.password}" >> /opt/.env
+      echo "MYSQL_HOST=${google_sql_database_instance.db_instance.private_ip_address}" >> /opt/.env
     fi
-    # Run npm install with elevated privileges
-    sudo npm install
-
-    # Include the external script content
     $(cat ${file(var.script_file)})
   EOT
   }
