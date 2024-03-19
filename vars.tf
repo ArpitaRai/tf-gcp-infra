@@ -72,7 +72,7 @@ variable "protocol" {
 }
 
 variable "instance_image" {
-  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-02-28-06-15-49"
+  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-03-19-17-36-55"
 }
 
 variable "image_size" {
@@ -84,7 +84,7 @@ variable "image_type" {
 }
 
 variable "zone" {
-  default = "us-east1-b"
+  default = "us-east1-d"
 }
 
 variable "script_file" {
@@ -100,7 +100,7 @@ variable "network_tier" {
 }
 
 variable "machine_type" {
-  default = "e2-micro"
+  default = "n1-standard-4"
 }
 
 variable "sql-db" {
@@ -196,4 +196,44 @@ variable "higher_priority" {
 
 variable "lower_priority" {
   default = 999
+}
+
+variable "dns_var_zone" {
+  default = "arpita-webapp-zone"
+}
+
+variable "webapp_dns_name" {
+  default = "arpitara.me."
+}
+
+variable "webapp_dns_type_A" {
+  default = "A"
+}
+
+variable "webapp_ttl" {
+  default = 5
+}
+
+variable "vm_service_account_id" {
+  default = "vm-service-account"
+}
+
+variable "vm_service_display_name" {
+  default = "VM Service Account"
+}
+
+variable "logging_role" {
+  default = "roles/logging.admin"
+}
+
+variable "metric_role" {
+  default = "roles/monitoring.metricWriter"
+}
+
+variable "cloud_platform_scope" {
+  default = "cloud-platform"
+}
+
+variable "stack_type_ipv4" {
+  default = "ipv4-address"
 }

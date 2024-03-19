@@ -4,11 +4,6 @@ provider "google" {
   region  = var.region
 }
 
-# Enable Service Networking API
-# resource "google_project_service" "servicenetworking" {
-#   project = var.project_id
-#   service = "servicenetworking.googleapis.com"
-# }
 
 
 # VPC creation
@@ -109,10 +104,6 @@ resource "google_sql_user" "database_user" {
   password = random_password.generated_password.result
 }
 
-
-#------------------------------------------------------------------------------------------------------------
-
-
 # Route creation for webapp subnet
 resource "google_compute_route" "webapp_route" {
   depends_on = [
@@ -124,8 +115,16 @@ resource "google_compute_route" "webapp_route" {
   priority         = var.proiority
   next_hop_gateway = var.next_hop_gateway
 }
-
+resource "google_compute_address" "static" {
+  name = var.stack_type_ipv4
+}
 resource "google_compute_instance" "webapp-instance" {
+  name         = var.webapp_instance_name
+  machine_type = var.machine_type
+  zone         = var.zone
+  tags         = var.instance_tags
+  depends_on   = [google_sql_database_instance.db_instance, google_service_account.vm_service_account]
+
   boot_disk {
     initialize_params {
       image = var.instance_image
@@ -134,13 +133,10 @@ resource "google_compute_instance" "webapp-instance" {
     }
 
   }
-
-  machine_type = var.machine_type
-  name         = var.webapp_instance_name
-
   network_interface {
     access_config {
       network_tier = var.network_tier
+      nat_ip       = google_compute_address.static.address
     }
 
     queue_count = 0
@@ -148,9 +144,6 @@ resource "google_compute_instance" "webapp-instance" {
     network     = google_compute_network.vpc.self_link
     subnetwork  = google_compute_subnetwork.webapp_subnet.self_link
   }
-
-  zone = var.zone
-  tags = var.instance_tags
   metadata = {
     startup-script = <<-EOT
     #!/bin/bash
@@ -165,29 +158,93 @@ resource "google_compute_instance" "webapp-instance" {
       echo "MYSQL_USER=${google_sql_user.database_user.name}" >> /opt/.env
       echo "MYSQL_PASSWORD=${google_sql_user.database_user.password}" >> /opt/.env
       echo "MYSQL_HOST=${google_sql_database_instance.db_instance.private_ip_address}" >> /opt/.env
+      echo "ENV = prod" >> /opt/.env
     fi
     $(cat ${file(var.script_file)})
   EOT
   }
+  service_account {
+    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+
+    email  = google_service_account.vm_service_account.email
+    scopes = [var.cloud_platform_scope] # Add required scopes
+  }
 
 }
+
+#------------------------------------------------------------------------------------------------------------
+
+# Retrieve the managed zone ID for the DNS zone
+data "google_dns_managed_zone" "webapp_zone" {
+  name = var.dns_var_zone # Specify your Cloud DNS zone name here
+}
+
+# Retrieve the private IP address of the VM instance
+data "google_compute_instance" "webapp_instance" {
+  depends_on = [google_compute_instance.webapp-instance]
+
+  name    = var.webapp_instance_name
+  zone    = var.zone
+  project = var.project_id
+}
+
+# Create or update A record in Cloud DNS zone
+resource "google_dns_record_set" "webapp_dns" {
+
+  managed_zone = data.google_dns_managed_zone.webapp_zone.name
+  name         = var.webapp_dns_name
+  type         = var.webapp_dns_type_A
+  ttl          = var.webapp_ttl
+  rrdatas      = [data.google_compute_instance.webapp_instance.network_interface[0].access_config[0].nat_ip]
+}
+
+# Create a Service Account
+resource "google_service_account" "vm_service_account" {
+  account_id   = var.vm_service_account_id
+  display_name = var.vm_service_display_name
+}
+
+# Bind Roles to the Service Account
+resource "google_project_iam_binding" "logging_admin_binding" {
+  # depends_on = [google_service_account.vm_service_account]
+
+  project = var.project_id
+  role    = var.logging_role
+
+  members = [
+    "serviceAccount:${google_service_account.vm_service_account.email}"
+  ]
+}
+
+resource "google_project_iam_binding" "monitoring_metric_writer_binding" {
+  # depends_on = [google_service_account.vm_service_account]
+
+  project = var.project_id
+  role    = var.metric_role
+
+  members = [
+    "serviceAccount:${google_service_account.vm_service_account.email}"
+  ]
+}
+
+#------------------------------------------------------------------------------------------------------------
 
 #Firewall rules for the webapp
 
 # Firewall explicitly denies all traffic
-resource "google_compute_firewall" "webapp_denyall_firewall" {
-  name        = var.webapp_denyall_firewall_name
-  network     = google_compute_network.vpc.self_link
-  target_tags = var.instance_tags
-  priority    = var.higher_priority
+# resource "google_compute_firewall" "webapp_denyall_firewall" {
+#   name        = var.webapp_denyall_firewall_name
+#   network     = google_compute_network.vpc.self_link
+#   target_tags = var.instance_tags
+#   priority    = var.higher_priority
 
-  deny {
-    protocol = var.protocol
-    ports    = []
-  }
+#   deny {
+#     protocol = var.protocol
+#     ports    = []
+#   }
 
-  source_ranges = var.source_ranges
-}
+#   source_ranges = var.source_ranges
+# }
 
 # Create a firewall rule to allow traffic to your application port
 resource "google_compute_firewall" "allow_app_traffic" {
@@ -204,29 +261,29 @@ resource "google_compute_firewall" "allow_app_traffic" {
 }
 
 # Create a firewall rule to disallow traffic to SSH port from the internet
-resource "google_compute_firewall" "deny_ssh_from_internet" {
-  name     = var.denied_firewall_name
-  network  = google_compute_network.vpc.self_link
-  priority = var.lower_priority
+# resource "google_compute_firewall" "deny_ssh_from_internet" {
+#   name     = var.denied_firewall_name
+#   network  = google_compute_network.vpc.self_link
+#   priority = var.lower_priority
 
 
-  deny {
-    protocol = var.protocol
-    ports    = [var.denied_ports] # SSH port
-  }
-  target_tags   = var.instance_tags
-  source_ranges = var.source_ranges # Deny traffic from any IP address on the internet
-}
-
-# resource "google_compute_firewall" "allow_ssh" {
-#   name    = "allow-ssh"
-#   network = google_compute_network.vpc.self_link
-
-#   allow {
-#     protocol = "tcp"
-#     ports    = ["22"]
+#   deny {
+#     protocol = var.protocol
+#     ports    = [var.denied_ports] # SSH port
 #   }
-
-#   source_ranges = ["0.0.0.0/0"]
-#   target_tags   = ["web-application"]
+#   target_tags   = var.instance_tags
+#   source_ranges = var.source_ranges # Deny traffic from any IP address on the internet
 # }
+
+resource "google_compute_firewall" "allow_ssh" {
+  name    = "allow-ssh"
+  network = google_compute_network.vpc.self_link
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["web-application"]
+}
