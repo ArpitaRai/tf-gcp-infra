@@ -72,7 +72,7 @@ variable "protocol" {
 }
 
 variable "instance_image" {
-  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-03-19-17-36-55"
+  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-03-19-21-36-50"
 }
 
 variable "image_size" {
