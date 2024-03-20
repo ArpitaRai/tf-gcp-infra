@@ -136,7 +136,7 @@ resource "google_compute_instance" "webapp-instance" {
   network_interface {
     access_config {
       network_tier = var.network_tier
-     // nat_ip       = google_compute_address.static.address
+      // nat_ip       = google_compute_address.static.address
     }
 
     queue_count = 0
