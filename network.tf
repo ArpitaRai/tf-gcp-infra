@@ -230,7 +230,7 @@ resource "google_project_iam_member" "pubsub_publisher_binding" {
   role    = var.pubsub_binding
   member  = "serviceAccount:${google_service_account.vm_service_account.email}"
 }
- 
+
 
 #------------------------------------------------------------------------------------------------------------
 
@@ -238,7 +238,7 @@ resource "google_vpc_access_connector" "connector" {
   name          = var.vpc_connector
   ip_cidr_range = var.ip_connector
   network       = google_compute_network.vpc.self_link
-  region  = var.region
+  region        = var.region
 
 }
 
@@ -286,22 +286,22 @@ resource "google_cloudfunctions2_function" "user_verification" {
     event_type   = var.event_type
     pubsub_topic = google_pubsub_topic.verify_email.id
   }
-service_config {
-  vpc_connector = google_vpc_access_connector.connector.name
-  vpc_connector_egress_settings  = var.egress_setting
-timeout_seconds = 300
-  environment_variables = {
-  MYSQL_HOST= google_sql_database_instance.db_instance.private_ip_address
-  MYSQL_USER = google_sql_user.database_user.name
-  MYSQL_PASSWORD = google_sql_user.database_user.password
-  MYSQL_DATABASE = google_sql_database.database.name
-  ENV = var.env_prod
-  API_KEY = var.api_key
-  MAIL_DOMAIN = var.mail_domain
-  }
+  service_config {
+    vpc_connector                 = google_vpc_access_connector.connector.name
+    vpc_connector_egress_settings = var.egress_setting
+    timeout_seconds               = 300
+    environment_variables = {
+      MYSQL_HOST     = google_sql_database_instance.db_instance.private_ip_address
+      MYSQL_USER     = google_sql_user.database_user.name
+      MYSQL_PASSWORD = google_sql_user.database_user.password
+      MYSQL_DATABASE = google_sql_database.database.name
+      ENV            = var.env_prod
+      API_KEY        = var.api_key
+      MAIL_DOMAIN    = var.mail_domain
+    }
 
-  
-}
+
+  }
   build_config {
     runtime     = var.node_js
     entry_point = var.entry_point
