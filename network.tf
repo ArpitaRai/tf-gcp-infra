@@ -33,8 +33,6 @@ resource "google_compute_subnetwork" "db_subnet" {
 
 }
 
-
-
 #------------------------------------------------------------------------------------------------------------
 # Use to create a global external IP address
 resource "google_compute_global_address" "private_ip_address" {
@@ -80,7 +78,7 @@ resource "google_sql_database_instance" "db_instance" {
 # Randomly generated password
 resource "random_password" "generated_password" {
   length           = var.password_length
-  special          = true
+  special          = false
   override_special = var.special_character
 
 }
@@ -227,24 +225,116 @@ resource "google_project_iam_binding" "monitoring_metric_writer_binding" {
   ]
 }
 
+resource "google_project_iam_member" "pubsub_publisher_binding" {
+  project = var.project_id
+  role    = var.pubsub_binding
+  member  = "serviceAccount:${google_service_account.vm_service_account.email}"
+}
+ 
+
 #------------------------------------------------------------------------------------------------------------
+
+resource "google_vpc_access_connector" "connector" {
+  name          = var.vpc_connector
+  ip_cidr_range = var.ip_connector
+  network       = google_compute_network.vpc.self_link
+  region  = var.region
+
+}
+
+# Create Pub/Sub topic
+resource "google_pubsub_topic" "verify_email" {
+  name = var.topic_name
+}
+# Create Pub/Sub subscription for the Cloud Function
+resource "google_pubsub_subscription" "verify_email_subscription" {
+  name                 = var.pubsub_name
+  topic                = google_pubsub_topic.verify_email.id
+  ack_deadline_seconds = 20
+
+  labels = {
+    retention_duration = var.retention_time # 7 days in seconds
+  }
+}
+
+resource "google_storage_bucket" "static" {
+  name          = var.bucket_storage
+  location      = var.region
+  storage_class = var.storage_class
+
+  uniform_bucket_level_access = true
+}
+
+data "archive_file" "default" {
+  type        = var.archive_type
+  output_path = var.output_path
+  source_dir  = var.source_dir_path
+}
+resource "google_storage_bucket_object" "email-verification" {
+  name   = var.bucket_object
+  source = data.archive_file.default.output_path
+  bucket = google_storage_bucket.static.id
+
+}
+# Define the Google Cloud Function
+resource "google_cloudfunctions2_function" "user_verification" {
+  name        = var.serverless_fun
+  location    = var.region
+  description = var.description
+
+  event_trigger {
+    event_type   = var.event_type
+    pubsub_topic = google_pubsub_topic.verify_email.id
+  }
+service_config {
+  vpc_connector = google_vpc_access_connector.connector.name
+  vpc_connector_egress_settings  = var.egress_setting
+timeout_seconds = 300
+  environment_variables = {
+  MYSQL_HOST= google_sql_database_instance.db_instance.private_ip_address
+  MYSQL_USER = google_sql_user.database_user.name
+  MYSQL_PASSWORD = google_sql_user.database_user.password
+  MYSQL_DATABASE = google_sql_database.database.name
+  ENV = var.env_prod
+  API_KEY = var.api_key
+  MAIL_DOMAIN = var.mail_domain
+  }
+
+  
+}
+  build_config {
+    runtime     = var.node_js
+    entry_point = var.entry_point
+    source {
+      storage_source {
+        bucket = google_storage_bucket.static.name
+        object = google_storage_bucket_object.email-verification.name
+      }
+    }
+  }
+
+}
+
+
+#------------------------------------------------------------------------------------------------------------
+
 
 #Firewall rules for the webapp
 
 # Firewall explicitly denies all traffic
-resource "google_compute_firewall" "webapp_denyall_firewall" {
-  name        = var.webapp_denyall_firewall_name
-  network     = google_compute_network.vpc.self_link
-  target_tags = var.instance_tags
-  priority    = var.higher_priority
+# resource "google_compute_firewall" "webapp_denyall_firewall" {
+#   name        = var.webapp_denyall_firewall_name
+#   network     = google_compute_network.vpc.self_link
+#   target_tags = var.instance_tags
+#   priority    = var.higher_priority
 
-  deny {
-    protocol = var.protocol
-    ports    = []
-  }
+#   deny {
+#     protocol = var.protocol
+#     ports    = []
+#   }
 
-  source_ranges = var.source_ranges
-}
+#   source_ranges = var.source_ranges
+# }
 
 # Create a firewall rule to allow traffic to your application port
 resource "google_compute_firewall" "allow_app_traffic" {
@@ -260,30 +350,44 @@ resource "google_compute_firewall" "allow_app_traffic" {
   source_ranges = var.source_ranges # Allow traffic from any IP address on the internet
 }
 
-# Create a firewall rule to disallow traffic to SSH port from the internet
-resource "google_compute_firewall" "deny_ssh_from_internet" {
-  name     = var.denied_firewall_name
-  network  = google_compute_network.vpc.self_link
-  priority = var.lower_priority
+# # Create a firewall rule to disallow traffic to SSH port from the internet
+# resource "google_compute_firewall" "deny_ssh_from_internet" {
+#   name     = var.denied_firewall_name
+#   network  = google_compute_network.vpc.self_link
+#   priority = var.lower_priority
 
 
-  deny {
-    protocol = var.protocol
-    ports    = [var.denied_ports] # SSH port
+#   deny {
+#     protocol = var.protocol
+#     ports    = [var.denied_ports] # SSH port
+#   }
+#   target_tags   = var.instance_tags
+#   source_ranges = var.source_ranges # Deny traffic from any IP address on the internet
+# }
+
+resource "google_compute_firewall" "allow_ssh" {
+  name    = "allow-ssh"
+  network = google_compute_network.vpc.self_link
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
   }
-  target_tags   = var.instance_tags
-  source_ranges = var.source_ranges # Deny traffic from any IP address on the internet
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["web-application"]
 }
 
-# resource "google_compute_firewall" "allow_ssh" {
-#   name    = "allow-ssh"
-#   network = google_compute_network.vpc.self_link
+# resource "google_compute_firewall" "allow_mysql" {
+#   name     = "allow-mysql"
+#   network  = google_compute_network.vpc.self_link
+#   priority = var.lower_priority
 
 #   allow {
 #     protocol = "tcp"
-#     ports    = ["22"]
+#     ports    = ["3306"]  # MySQL default port
 #   }
-
-#   source_ranges = ["0.0.0.0/0"]
-#   target_tags   = ["web-application"]
+#   target_tags   = var.instance_tags
+#   source_ranges = var.source_ranges  # Allow traffic from any IP address on the internet
 # }
+

@@ -72,7 +72,7 @@ variable "protocol" {
 }
 
 variable "instance_image" {
-  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-03-20-19-53-20"
+  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-03-26-04-15-17"
 }
 
 variable "image_size" {
@@ -236,4 +236,87 @@ variable "cloud_platform_scope" {
 
 variable "stack_type_ipv4" {
   default = "ipv4-address"
+}
+
+variable "bucket_storage" {
+  default = "webapp-serverless"
+}
+
+variable "storage_class" {
+  default = "STANDARD"
+}
+variable "bucket_object" {
+  default = "serverless-user-verification"
+}
+
+variable "description" {
+  default = "Cloud Function for user verification"
+}
+
+variable "event_type" {
+  default = "google.cloud.pubsub.topic.v1.messagePublished"
+}
+
+variable "node_js" {
+  default = "nodejs20"
+}
+
+variable "entry_point" {
+  default = "userVerification"
+}
+
+variable "retention_time" {
+  default = "604800s"
+}
+
+variable "pubsub_name" {
+  default = "verify_email_sub"
+}
+
+variable "topic_name" {
+  default = "verify_email"
+}
+
+variable "pubsub_binding" {
+  default = "roles/pubsub.publisher"
+}
+
+variable "output_path" {
+  default = "/tmp/serverless.zip"
+}
+
+variable "source_dir_path" {
+  default = "/Users/arpitarai/Desktop/Cloud/serverless/serverless"
+}
+
+variable "serverless_fun" {
+  default = "user-verification"
+}
+
+variable "archive_type" {
+  default = "zip"
+}
+
+variable "api_key" {
+  default = "a693158473725a3b69c55bdd32761689-f68a26c9-cf4f416d"
+}
+
+variable "mail_domain" {
+  default = "mail.arpitara.me"
+}
+
+variable "env_prod" {
+  default = "prod"
+}
+
+variable "egress_setting" {
+  default = "PRIVATE_RANGES_ONLY"
+}
+
+variable "vpc_connector" {
+  default = "vpc-connector"
+}
+
+variable "ip_connector" {
+  default = "10.8.0.0/28"
 }
