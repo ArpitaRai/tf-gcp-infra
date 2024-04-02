@@ -116,59 +116,59 @@ resource "google_compute_route" "webapp_route" {
 resource "google_compute_address" "static" {
   name = var.stack_type_ipv4
 }
-resource "google_compute_instance" "webapp-instance" {
-  name         = var.webapp_instance_name
-  machine_type = var.machine_type
-  zone         = var.zone
-  tags         = var.instance_tags
-  depends_on   = [google_sql_database_instance.db_instance, google_service_account.vm_service_account]
+# resource "google_compute_instance" "webapp-instance" {
+#   name         = var.webapp_instance_name
+#   machine_type = var.machine_type
+#   zone         = var.zone
+#   tags         = var.instance_tags
+#   depends_on   = [google_sql_database_instance.db_instance, google_service_account.vm_service_account]
 
-  boot_disk {
-    initialize_params {
-      image = var.instance_image
-      size  = var.image_size
-      type  = var.image_type
-    }
+#   boot_disk {
+#     initialize_params {
+#       image = var.instance_image
+#       size  = var.image_size
+#       type  = var.image_type
+#     }
 
-  }
-  network_interface {
-    access_config {
-      network_tier = var.network_tier
-      // nat_ip       = google_compute_address.static.address
-    }
+#   }
+#   network_interface {
+#     access_config {
+#       network_tier = var.network_tier
+#       // nat_ip       = google_compute_address.static.address
+#     }
 
-    queue_count = 0
-    stack_type  = var.stack_type
-    network     = google_compute_network.vpc.self_link
-    subnetwork  = google_compute_subnetwork.webapp_subnet.self_link
-  }
-  metadata = {
-    startup-script = <<-EOT
-    #!/bin/bash
-    set -e
+#     queue_count = 0
+#     stack_type  = var.stack_type
+#     network     = google_compute_network.vpc.self_link
+#     subnetwork  = google_compute_subnetwork.webapp_subnet.self_link
+#   }
+#   metadata = {
+#     startup-script = <<-EOT
+#     #!/bin/bash
+#     set -e
 
-    # Change directory to /opt
-    cd /opt
+#     # Change directory to /opt
+#     cd /opt
 
-    # Create a .env file with database connection details
-    if [ ! -f /opt/.env ]; then
-      echo "MYSQL_DATABASE=${google_sql_database.database.name}" >> /opt/.env
-      echo "MYSQL_USER=${google_sql_user.database_user.name}" >> /opt/.env
-      echo "MYSQL_PASSWORD=${google_sql_user.database_user.password}" >> /opt/.env
-      echo "MYSQL_HOST=${google_sql_database_instance.db_instance.private_ip_address}" >> /opt/.env
-      echo "ENV = prod" >> /opt/.env
-    fi
-    $(cat ${file(var.script_file)})
-  EOT
-  }
-  service_account {
-    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+#     # Create a .env file with database connection details
+#     if [ ! -f /opt/.env ]; then
+#       echo "MYSQL_DATABASE=${google_sql_database.database.name}" >> /opt/.env
+#       echo "MYSQL_USER=${google_sql_user.database_user.name}" >> /opt/.env
+#       echo "MYSQL_PASSWORD=${google_sql_user.database_user.password}" >> /opt/.env
+#       echo "MYSQL_HOST=${google_sql_database_instance.db_instance.private_ip_address}" >> /opt/.env
+#       echo "ENV = prod" >> /opt/.env
+#     fi
+#     $(cat ${file(var.script_file)})
+#   EOT
+#   }
+#   service_account {
+#     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
 
-    email  = google_service_account.vm_service_account.email
-    scopes = [var.cloud_platform_scope] # Add required scopes
-  }
+#     email  = google_service_account.vm_service_account.email
+#     scopes = [var.cloud_platform_scope] # Add required scopes
+#   }
 
-}
+# }
 
 #------------------------------------------------------------------------------------------------------------
 
@@ -178,23 +178,23 @@ data "google_dns_managed_zone" "webapp_zone" {
 }
 
 # Retrieve the private IP address of the VM instance
-data "google_compute_instance" "webapp_instance" {
-  depends_on = [google_compute_instance.webapp-instance]
+# data "google_compute_instance" "webapp_instance" {
+#   depends_on = [google_compute_instance.webapp-instance]
 
-  name    = var.webapp_instance_name
-  zone    = var.zone
-  project = var.project_id
-}
+#   name    = var.webapp_instance_name
+#   zone    = var.zone
+#   project = var.project_id
+# }
 
 # Create or update A record in Cloud DNS zone
-resource "google_dns_record_set" "webapp_dns" {
+# resource "google_dns_record_set" "webapp_dns" {
 
-  managed_zone = data.google_dns_managed_zone.webapp_zone.name
-  name         = var.webapp_dns_name
-  type         = var.webapp_dns_type_A
-  ttl          = var.webapp_ttl
-  rrdatas      = [data.google_compute_instance.webapp_instance.network_interface[0].access_config[0].nat_ip]
-}
+#   managed_zone = data.google_dns_managed_zone.webapp_zone.name
+#   name         = var.webapp_dns_name
+#   type         = var.webapp_dns_type_A
+#   ttl          = var.webapp_ttl
+#   rrdatas      = [data.google_compute_instance.webapp_instance.network_interface[0].access_config[0].nat_ip]
+# }
 
 # Create a Service Account
 resource "google_service_account" "vm_service_account" {
@@ -316,7 +316,178 @@ resource "google_cloudfunctions2_function" "user_verification" {
 }
 
 
+#--------------------------------------- Assignment #8 ---------------------------------------------------------------------
+
+resource "google_compute_instance_template" "webapp-instance-template" {
+  name         = "webapp-instance-template"
+  machine_type = var.machine_type
+  #zone         = var.zone
+  tags       = var.instance_tags
+  depends_on = [google_sql_database_instance.db_instance, google_service_account.vm_service_account]
+
+  disk {
+    source_image = var.instance_image
+    disk_size_gb = var.image_size
+  }
+
+  network_interface {
+
+    network    = google_compute_network.vpc.self_link
+    subnetwork = google_compute_subnetwork.webapp_subnet.self_link
+
+    # default access config, defining external IP configuration
+    access_config {
+      network_tier = var.network_tier
+    }
+  }
+
+  metadata = {
+    startup-script = <<-EOT
+    #!/bin/bash
+    set -e
+
+    # Change directory to /opt
+    cd /opt
+
+    # Create a .env file with database connection details
+    if [ ! -f /opt/.env ]; then
+      echo "MYSQL_DATABASE=${google_sql_database.database.name}" >> /opt/.env
+      echo "MYSQL_USER=${google_sql_user.database_user.name}" >> /opt/.env
+      echo "MYSQL_PASSWORD=${google_sql_user.database_user.password}" >> /opt/.env
+      echo "MYSQL_HOST=${google_sql_database_instance.db_instance.private_ip_address}" >> /opt/.env
+      echo "ENV = prod" >> /opt/.env
+    fi
+    $(cat ${file(var.script_file)})
+  EOT
+  }
+
+  service_account {
+    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+
+    email  = google_service_account.vm_service_account.email
+    scopes = [var.cloud_platform_scope] # Add required scopes
+  }
+}
+
+
+# Compute Health Check
+resource "google_compute_region_health_check" "webapp_health_check" {
+  name                = "webapp-health-check"
+  region              = var.region
+  check_interval_sec  = 5
+  timeout_sec         = 3
+  healthy_threshold   = 5
+  unhealthy_threshold = 5
+
+  http_health_check {
+    port         = "8080"
+    request_path = "/healthz"
+  }
+}
+
+# Instance Group Manager
+
+resource "google_compute_region_instance_group_manager" "webapp-server" {
+  name                      = "webapp-server-igm"
+  base_instance_name        = "webapp"
+  region                    = "us-east1"
+  distribution_policy_zones = ["us-east1-d", "us-east1-c"]
+
+  version {
+    instance_template = google_compute_instance_template.webapp-instance-template.self_link_unique
+  }
+
+  all_instances_config {
+    metadata = {
+      metadata_key = "metadata_value"
+    }
+    labels = {
+      label_key = "label_value"
+    }
+  }
+
+  # target_pools = [google_compute_target_pool.appserver.id]
+  # target_size  = 2
+
+  named_port {
+    name = "webapp-port"
+    port = 8080
+  }
+
+  auto_healing_policies {
+    health_check      = google_compute_region_health_check.webapp_health_check.id
+    initial_delay_sec = 300
+  }
+}
+
+# Compute Autoscaler
+resource "google_compute_region_autoscaler" "webapp_autoscaler" {
+  name   = "webapp-autoscaler"
+  target = google_compute_region_instance_group_manager.webapp-server.id
+  autoscaling_policy {
+    min_replicas    = 1
+    max_replicas    = 5
+    cooldown_period = 60
+    cpu_utilization {
+      target = 0.05
+    }
+  }
+}
+
+module "gce-lb-http" {
+  source                          = "GoogleCloudPlatform/lb-http/google"
+  version                         = "~> 9.0"
+  managed_ssl_certificate_domains = ["arpitara.me"]
+  ssl                             = true
+  project                         = var.project_id
+  name                            = "webapp-loadbalancer"
+  target_tags                     = var.instance_tags
+  backends = {
+    default = {
+      port        = "8080"
+      protocol    = "HTTP"
+      port_name   = "webapp-port"
+      timeout_sec = 10
+      enable_cdn  = false
+
+
+      health_check = {
+        request_path = "/healthz"
+        port         = "8080"
+      }
+
+      log_config = {
+        enable      = true
+        sample_rate = 1.0
+      }
+
+      groups = [
+        {
+          # Each node pool instance group should be added to the backend.
+          group = google_compute_region_instance_group_manager.webapp-server.instance_group
+        },
+      ]
+
+      iap_config = {
+        enable = false
+      }
+    }
+  }
+  http_forward = false
+}
+
+
+# # Create or update A record in Cloud DNS zone to point to the load balancer IP
+resource "google_dns_record_set" "webapp_dns" {
+  managed_zone = data.google_dns_managed_zone.webapp_zone.name
+  name         = var.webapp_dns_name
+  type         = "A"
+  ttl          = var.webapp_ttl
+  rrdatas      = [module.gce-lb-http.external_ip]
+}
+
 #------------------------------------------------------------------------------------------------------------
+
 
 
 #Firewall rules for the webapp
