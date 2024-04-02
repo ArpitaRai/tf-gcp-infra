@@ -388,7 +388,7 @@ resource "google_compute_region_health_check" "webapp_health_check" {
 # Instance Group Manager
 
 resource "google_compute_region_instance_group_manager" "webapp-server" {
-  name                      = "webapp-server-igm"
+  name                      = "webapp-server"
   base_instance_name        = "webapp"
   region                    = "us-east1"
   distribution_policy_zones = ["us-east1-d", "us-east1-c"]
@@ -429,7 +429,7 @@ resource "google_compute_region_autoscaler" "webapp_autoscaler" {
     max_replicas    = 5
     cooldown_period = 60
     cpu_utilization {
-      target = 0.05
+      target = 0.01
     }
   }
 }
