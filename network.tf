@@ -318,9 +318,10 @@ resource "google_cloudfunctions2_function" "user_verification" {
 
 #--------------------------------------- Assignment #8 ---------------------------------------------------------------------
 
-resource "google_compute_instance_template" "webapp-instance-template" {
-  name         = "webapp-instance-template"
+resource "google_compute_region_instance_template" "webapp-instance-template" {
+  name         = var.instance_template
   machine_type = var.machine_type
+  region       = var.region
   #zone         = var.zone
   tags       = var.instance_tags
   depends_on = [google_sql_database_instance.db_instance, google_service_account.vm_service_account]
@@ -371,38 +372,41 @@ resource "google_compute_instance_template" "webapp-instance-template" {
 
 
 # Compute Health Check
-resource "google_compute_region_health_check" "webapp_health_check" {
-  name                = "webapp-health-check"
-  region              = var.region
+resource "google_compute_health_check" "webapp_health_check" {
+  name                = var.health_check_name
   check_interval_sec  = 5
   timeout_sec         = 3
   healthy_threshold   = 5
   unhealthy_threshold = 5
-
-  http_health_check {
-    port         = "8080"
-    request_path = "/healthz"
+  log_config {
+    enable = true
   }
+  http_health_check {
+    port         = var.allowed_ports
+    request_path = var.healthz_url
+
+  }
+
 }
 
 # Instance Group Manager
 
 resource "google_compute_region_instance_group_manager" "webapp-server" {
-  name                      = "webapp-server"
-  base_instance_name        = "webapp"
-  region                    = "us-east1"
-  distribution_policy_zones = ["us-east1-d", "us-east1-c"]
+  name                      = var.instance_group_name
+  base_instance_name        = var.base_name_instance_group
+  region                    = var.region
+  distribution_policy_zones = [var.region2, var.region3, var.region4]
 
   version {
-    instance_template = google_compute_instance_template.webapp-instance-template.self_link_unique
+    instance_template = google_compute_region_instance_template.webapp-instance-template.self_link
   }
 
   all_instances_config {
     metadata = {
-      metadata_key = "metadata_value"
+      metadata_key = var.metadata_value
     }
     labels = {
-      label_key = "label_value"
+      label_key = var.local_value
     }
   }
 
@@ -410,26 +414,26 @@ resource "google_compute_region_instance_group_manager" "webapp-server" {
   # target_size  = 2
 
   named_port {
-    name = "webapp-port"
+    name = var.instance_port_name
     port = 8080
   }
 
   auto_healing_policies {
-    health_check      = google_compute_region_health_check.webapp_health_check.id
+    health_check      = google_compute_health_check.webapp_health_check.id
     initial_delay_sec = 300
   }
 }
 
 # Compute Autoscaler
 resource "google_compute_region_autoscaler" "webapp_autoscaler" {
-  name   = "webapp-autoscaler"
+  name   = var.autoscaler_name
   target = google_compute_region_instance_group_manager.webapp-server.id
   autoscaling_policy {
-    min_replicas    = 1
-    max_replicas    = 5
+    min_replicas    = 3
+    max_replicas    = 6
     cooldown_period = 60
     cpu_utilization {
-      target = 0.01
+      target = 0.05
     }
   }
 }
@@ -437,23 +441,24 @@ resource "google_compute_region_autoscaler" "webapp_autoscaler" {
 module "gce-lb-http" {
   source                          = "GoogleCloudPlatform/lb-http/google"
   version                         = "~> 9.0"
-  managed_ssl_certificate_domains = ["arpitara.me"]
+  managed_ssl_certificate_domains = [var.ssl_domain]
   ssl                             = true
   project                         = var.project_id
-  name                            = "webapp-loadbalancer"
+  name                            = var.lb_name
   target_tags                     = var.instance_tags
+  load_balancing_scheme           = var.lb_scheme
   backends = {
     default = {
-      port        = "8080"
-      protocol    = "HTTP"
-      port_name   = "webapp-port"
+      port        = var.lb_backend_ports
+      protocol    = var.lb_backend_protocol
+      port_name   = var.lb_port_name
       timeout_sec = 10
       enable_cdn  = false
 
 
       health_check = {
-        request_path = "/healthz"
-        port         = "8080"
+        request_path = var.lb_healthz
+        port         = var.lb_healthz_port
       }
 
       log_config = {
@@ -481,7 +486,7 @@ module "gce-lb-http" {
 resource "google_dns_record_set" "webapp_dns" {
   managed_zone = data.google_dns_managed_zone.webapp_zone.name
   name         = var.webapp_dns_name
-  type         = "A"
+  type         = var.webapp_dns_type_A
   ttl          = var.webapp_ttl
   rrdatas      = [module.gce-lb-http.external_ip]
 }
@@ -518,7 +523,9 @@ resource "google_compute_firewall" "allow_app_traffic" {
     ports    = [var.allowed_ports, var.allowed_sql_port] # Specify the port your application listens to
   }
   target_tags   = var.instance_tags
-  source_ranges = var.source_ranges # Allow traffic from any IP address on the internet
+  source_ranges = [var.source_ranges1, var.source_ranges2] # Allow traffic from any IP address on the internet
+  # source_ranges = [module.gce-lb-http.external_ip]
+
 }
 
 # Create a firewall rule to disallow traffic to SSH port from the internet

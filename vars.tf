@@ -72,7 +72,7 @@ variable "protocol" {
 }
 
 variable "instance_image" {
-  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-03-27-17-43-14"
+  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-04-03-14-45-35"
 }
 
 variable "image_size" {
@@ -319,4 +319,100 @@ variable "vpc_connector" {
 
 variable "ip_connector" {
   default = "10.8.0.0/28"
+}
+
+variable "instance_template" {
+  default = "webapp-instance-template"
+}
+
+variable "source_ranges1" {
+  default = "130.211.0.0/22"
+}
+
+variable "source_ranges2" {
+  default = "35.191.0.0/16"
+}
+
+variable "health_check_name" {
+  default = "webapp-health-check"
+}
+
+variable "healthz_url" {
+  default = "/healthz"
+}
+
+variable "instance_group_name" {
+  default = "webapp-server"
+}
+
+variable "base_name_instance_group" {
+  default = "webapp"
+}
+
+variable "region2" {
+  default = "us-east1-d"
+}
+
+variable "region3" {
+  default = "us-east1-c"
+}
+
+variable "metadata_value" {
+  default = "metadata_value"
+}
+
+variable "local_value" {
+  default = "label_value"
+}
+
+variable "instance_port_name" {
+  default = "webapp-port"
+}
+
+variable "autoscaler_name" {
+  default = "webapp-autoscaler"
+}
+
+variable "loadbalancer_source" {
+  default = "GoogleCloudPlatform/lb-http/google"
+}
+
+variable "lb_version" {
+  default = "~> 9.0"
+}
+
+variable "ssl_domain" {
+  default = "arpitara.me"
+}
+
+variable "lb_name" {
+  default = "webapp-loadbalancer"
+}
+
+variable "lb_scheme" {
+  default = "EXTERNAL_MANAGED"
+}
+
+variable "lb_backend_ports" {
+  default = "8080"
+}
+
+variable "lb_backend_protocol" {
+  default = "HTTP"
+}
+
+variable "lb_port_name" {
+  default = "webapp-port"
+}
+
+variable "lb_healthz" {
+  default = "/healthz"
+}
+
+variable "lb_healthz_port" {
+  default = "8080"
+}
+
+variable "region4" {
+  default = "us-east1-b"
 }
