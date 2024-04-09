@@ -100,7 +100,7 @@ variable "network_tier" {
 }
 
 variable "machine_type" {
-  default = "n1-standard-4"
+  default = "n2d-highmem-16"
 }
 
 variable "sql-db" {
@@ -159,7 +159,7 @@ variable "private_ip_address_name" {
 }
 
 variable "db_instance_name" {
-  default = "private-ip-sql-instance"
+  default = "private-sql-instance"
 }
 
 variable "special_character" {
@@ -415,4 +415,12 @@ variable "lb_healthz_port" {
 
 variable "region4" {
   default = "us-east1-b"
+}
+
+variable "key_service_account_id" {
+  default = "key-service-account"
+}
+
+variable "key_service_display_name" {
+  default = "Key Service Account"
 }
