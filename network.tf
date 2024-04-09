@@ -57,7 +57,7 @@ resource "google_sql_database_instance" "db_instance" {
   database_version    = var.sql-db
   depends_on          = [google_service_networking_connection.networ_connection, google_kms_crypto_key_iam_binding.crypto_key]
   deletion_protection = false
-  //encryption_key_name = google_kms_crypto_key.sql-key.id
+  encryption_key_name = google_kms_crypto_key.sql-key.id
 
   settings {
     tier              = var.tier
@@ -264,9 +264,9 @@ resource "google_storage_bucket" "static" {
   location      = var.region
   storage_class = var.storage_class
   depends_on    = [google_kms_crypto_key_iam_binding.crypto_key_storage]
-  encryption {
-    default_kms_key_name = google_kms_crypto_key.storage-key.id
-  }
+  # encryption {
+  #   default_kms_key_name = google_kms_crypto_key.storage-key.id
+  # }
   uniform_bucket_level_access = true
 }
 
@@ -510,6 +510,7 @@ resource "random_id" "random_suffix" {
 
 resource "google_kms_key_ring" "webapp-keyring" {
   name     = "webapp-keyring-${random_id.random_suffix.hex}"
+  project  = var.project_id
   provider = google-beta
   location = "us-east1"
 }
@@ -526,7 +527,7 @@ resource "google_kms_crypto_key" "sql-key" {
 }
 resource "google_kms_crypto_key_iam_binding" "crypto_key" {
   crypto_key_id = google_kms_crypto_key.sql-key.id
-  role          = "roles/cloudkms.cryptoKeyEncrypter"
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   members = ["serviceAccount:${google_project_service_identity.gcp_sa_cloud_sql.email}"
   ]
 }
@@ -595,6 +596,85 @@ resource "google_kms_crypto_key_iam_binding" "crypto_key_storage" {
 # }
 
 
+resource "google_secret_manager_secret" "secret-db-name" {
+  secret_id = "MYSQL_DATABASE"
+  labels = {
+    label = "db-name"
+  }
+  replication {
+    auto {}
+  }
+}
+
+
+resource "google_secret_manager_secret_version" "secret-version-basic" {
+  secret      = google_secret_manager_secret.secret-db-name.id
+  secret_data = google_sql_database.database.name
+}
+
+resource "google_secret_manager_secret" "secret-db-user" {
+  secret_id = "MYSQL_USER"
+  labels = {
+    label = "db-user"
+  }
+  replication {
+    auto {}
+  }
+}
+
+
+resource "google_secret_manager_secret_version" "secret-version-basic1" {
+  secret      = google_secret_manager_secret.secret-db-user.id
+  secret_data = google_sql_user.database_user.name
+}
+
+resource "google_secret_manager_secret" "secret-db-password" {
+  secret_id = "MYSQL_PASSWORD"
+  labels = {
+    label = "db-password"
+  }
+  replication {
+    auto {}
+  }
+}
+
+
+resource "google_secret_manager_secret_version" "secret-version-basic2" {
+  secret      = google_secret_manager_secret.secret-db-password.id
+  secret_data = google_sql_user.database_user.password
+}
+
+resource "google_secret_manager_secret" "secret-db-host" {
+  secret_id = "MYSQL_HOST"
+  labels = {
+    label = "db-host"
+  }
+  replication {
+    auto {}
+  }
+}
+
+
+resource "google_secret_manager_secret_version" "secret-version-basic3" {
+  secret      = google_secret_manager_secret.secret-db-host.id
+  secret_data = google_sql_database_instance.db_instance.private_ip_address
+}
+
+resource "google_secret_manager_secret" "secret-db-env" {
+  secret_id = "ENV"
+  labels = {
+    label = "prod-env"
+  }
+  replication {
+    auto {}
+  }
+}
+
+
+resource "google_secret_manager_secret_version" "secret-version-basic4" {
+  secret      = google_secret_manager_secret.secret-db-env.id
+  secret_data = "ENV"
+}
 
 
 #------------------------------------------------------------------------------------------------------------
