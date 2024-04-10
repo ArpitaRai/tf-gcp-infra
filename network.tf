@@ -263,7 +263,7 @@ resource "google_storage_bucket" "static" {
   name          = var.bucket_storage
   location      = var.region
   storage_class = var.storage_class
-    encryption {
+  encryption {
     default_kms_key_name = google_kms_crypto_key.storage-key.id
   }
   uniform_bucket_level_access = true
@@ -333,9 +333,9 @@ resource "google_compute_region_instance_template" "webapp-instance-template" {
   disk {
     source_image = var.instance_image
     disk_size_gb = var.image_size
-      # Specify encryption key
+    # Specify encryption key
     disk_encryption_key {
-      kms_key_self_link =  "${google_kms_crypto_key.instance-key.id}"
+      kms_key_self_link = google_kms_crypto_key.instance-key.id
     }
   }
 
@@ -512,8 +512,8 @@ resource "random_id" "random_suffix" {
 }
 
 resource "google_kms_key_ring" "webapp-keyring" {
-  name     = "webapp-keyring-${random_id.random_suffix.hex}"
-  project  = var.project_id
+  name    = "webapp-keyring-${random_id.random_suffix.hex}"
+  project = var.project_id
   #provider = google-beta
   location = var.region
 }
@@ -523,7 +523,7 @@ resource "google_kms_crypto_key" "sql-key" {
   key_ring        = google_kms_key_ring.webapp-keyring.id
   purpose         = var.key_purpose
   rotation_period = var.key_retention
- # provider = google-beta
+  # provider = google-beta
 
   lifecycle {
     prevent_destroy = false
@@ -571,7 +571,7 @@ resource "google_kms_crypto_key" "instance-key" {
 resource "google_kms_crypto_key_iam_binding" "instance-key-binding" {
   crypto_key_id = google_kms_crypto_key.instance-key.id
   role          = var.key_role
-  members       = [
+  members = [
     "serviceAccount:${google_service_account.vm_service_account.email}",
     "serviceAccount:${var.service_account_for_vm_key}"
   ]
@@ -670,7 +670,7 @@ resource "google_secret_manager_secret" "instance-kms-key" {
     auto {}
   }
 }
- 
+
 resource "google_secret_manager_secret_version" "instance-kms-key-version" {
   secret      = google_secret_manager_secret.instance-kms-key.id
   secret_data = google_kms_crypto_key.instance-key.id

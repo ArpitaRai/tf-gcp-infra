@@ -501,7 +501,7 @@ variable "vm_key_label" {
   default = "vm-key-id"
 }
 
-variable "service_account_for_vm_key"{
+variable "service_account_for_vm_key" {
   default = "service-429625433471@compute-system.iam.gserviceaccount.com"
 }
 
