@@ -5,7 +5,7 @@ variable "project_id" {
 
 variable "region" {
   description = "Google Cloud region"
-  default     = "us-east1"
+  default     = "us-east4"
 }
 
 variable "vpc_name" {
@@ -72,7 +72,7 @@ variable "protocol" {
 }
 
 variable "instance_image" {
-  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-04-03-14-45-35"
+  default = "projects/dev-gcp-414704/global/images/webapp-packer-image-24-04-10-03-33-27"
 }
 
 variable "image_size" {
@@ -84,7 +84,7 @@ variable "image_type" {
 }
 
 variable "zone" {
-  default = "us-east1-d"
+  default = "us-east4-b"
 }
 
 variable "script_file" {
@@ -100,7 +100,7 @@ variable "network_tier" {
 }
 
 variable "machine_type" {
-  default = "n2d-highmem-16"
+  default = "e2-medium"
 }
 
 variable "sql-db" {
@@ -350,11 +350,11 @@ variable "base_name_instance_group" {
 }
 
 variable "region2" {
-  default = "us-east1-d"
+  default = "us-east4-a"
 }
 
 variable "region3" {
-  default = "us-east1-c"
+  default = "us-east4-c"
 }
 
 variable "metadata_value" {
@@ -414,7 +414,7 @@ variable "lb_healthz_port" {
 }
 
 variable "region4" {
-  default = "us-east1-b"
+  default = "us-east4-b"
 }
 
 variable "key_service_account_id" {
@@ -423,4 +423,88 @@ variable "key_service_account_id" {
 
 variable "key_service_display_name" {
   default = "Key Service Account"
+}
+
+variable "sql_admin" {
+  default = "sqladmin.googleapis.com"
+}
+
+variable "sql_key" {
+  default = "sql-crypto-key"
+}
+
+variable "key_purpose" {
+  default = "ENCRYPT_DECRYPT"
+}
+
+variable "key_retention" {
+  default = "2592000s"
+}
+
+variable "storage_key_name" {
+  default = "storage-crypto-key"
+}
+
+variable "key_role" {
+  default = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+}
+
+variable "secret_id_db_name" {
+  default = "MYSQL_DATABASE"
+}
+
+variable "db_label" {
+  default = "db-name"
+}
+
+variable "secret_id_db_user" {
+  default = "MYSQL_USER"
+}
+
+variable "user_label" {
+  default = "db-user"
+}
+
+variable "secret_id_db_pass" {
+  default = "MYSQL_PASSWORD"
+}
+
+variable "pass_label" {
+  default = "db-password"
+}
+
+variable "secret_id_db_host" {
+  default = "MYSQL_HOST"
+}
+
+variable "host_label" {
+  default = "db-host"
+}
+
+variable "secret_id_db_env" {
+  default = "ENV"
+}
+
+variable "env_label" {
+  default = "prod-env"
+}
+
+variable "vm_key_name" {
+  default = "vm-instance-key"
+}
+
+variable "secret_vm_key_name" {
+  default = "VM_KEY_ID"
+}
+
+variable "vm_key_label" {
+  default = "vm-key-id"
+}
+
+variable "service_account_for_vm_key"{
+  default = "service-429625433471@compute-system.iam.gserviceaccount.com"
+}
+
+variable "secret_id_kms_key" {
+  default = "INSTANCE_KMS_KEY"
 }

@@ -55,7 +55,7 @@ resource "google_sql_database_instance" "db_instance" {
   name                = var.db_instance_name
   region              = var.region
   database_version    = var.sql-db
-  depends_on          = [google_service_networking_connection.networ_connection, google_kms_crypto_key_iam_binding.crypto_key]
+  depends_on          = [google_service_networking_connection.networ_connection]
   deletion_protection = false
   encryption_key_name = google_kms_crypto_key.sql-key.id
 
@@ -263,10 +263,9 @@ resource "google_storage_bucket" "static" {
   name          = var.bucket_storage
   location      = var.region
   storage_class = var.storage_class
-  depends_on    = [google_kms_crypto_key_iam_binding.crypto_key_storage]
-  # encryption {
-  #   default_kms_key_name = google_kms_crypto_key.storage-key.id
-  # }
+    encryption {
+    default_kms_key_name = google_kms_crypto_key.storage-key.id
+  }
   uniform_bucket_level_access = true
 }
 
@@ -334,6 +333,10 @@ resource "google_compute_region_instance_template" "webapp-instance-template" {
   disk {
     source_image = var.instance_image
     disk_size_gb = var.image_size
+      # Specify encryption key
+    disk_encryption_key {
+      kms_key_self_link =  "${google_kms_crypto_key.instance-key.id}"
+    }
   }
 
   network_interface {
@@ -501,7 +504,7 @@ resource "google_dns_record_set" "webapp_dns" {
 resource "google_project_service_identity" "gcp_sa_cloud_sql" {
   provider = google-beta
   project  = var.project_id
-  service  = "sqladmin.googleapis.com"
+  service  = var.sql_admin
 }
 data "google_storage_project_service_account" "gcs_account" {}
 resource "random_id" "random_suffix" {
@@ -511,33 +514,38 @@ resource "random_id" "random_suffix" {
 resource "google_kms_key_ring" "webapp-keyring" {
   name     = "webapp-keyring-${random_id.random_suffix.hex}"
   project  = var.project_id
-  provider = google-beta
-  location = "us-east1"
+  #provider = google-beta
+  location = var.region
 }
 
 resource "google_kms_crypto_key" "sql-key" {
-  name            = "sql-crypto-key"
+  name            = var.sql_key
   key_ring        = google_kms_key_ring.webapp-keyring.id
-  purpose         = "ENCRYPT_DECRYPT"
-  rotation_period = "2592000s"
+  purpose         = var.key_purpose
+  rotation_period = var.key_retention
+ # provider = google-beta
+
   lifecycle {
     prevent_destroy = false
   }
 
 }
 resource "google_kms_crypto_key_iam_binding" "crypto_key" {
+  #provider = google.beta
   crypto_key_id = google_kms_crypto_key.sql-key.id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  role          = var.key_role
   members = ["serviceAccount:${google_project_service_identity.gcp_sa_cloud_sql.email}"
   ]
 }
 
 
 resource "google_kms_crypto_key" "storage-key" {
-  name            = "storage-crypto-key"
+  name            = var.storage_key_name
   key_ring        = google_kms_key_ring.webapp-keyring.id
-  purpose         = "ENCRYPT_DECRYPT"
-  rotation_period = "2592000s"
+  purpose         = var.key_purpose
+  rotation_period = var.key_retention
+  #provider = google-beta
+
   lifecycle {
     prevent_destroy = false
   }
@@ -547,59 +555,39 @@ resource "google_kms_crypto_key" "storage-key" {
 
 resource "google_kms_crypto_key_iam_binding" "crypto_key_storage" {
   crypto_key_id = google_kms_crypto_key.storage-key.id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  role          = var.key_role
   members       = ["serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"]
 }
 
-# resource "google_kms_crypto_key" "vm-key" {
-#   name            = "vm-crypto-key"
-#   key_ring        = google_kms_key_ring.webapp-keyring.id
-#   purpose         = "ENCRYPT_DECRYPT"
-#   rotation_period = "2592000s"
-#   lifecycle {
-#     prevent_destroy = false
-#   }
 
+# Create a KMS crypto key for encrypting the VM instance template
+resource "google_kms_crypto_key" "instance-key" {
+  name     = var.vm_key_name
+  key_ring = google_kms_key_ring.webapp-keyring.id
+  purpose  = var.key_purpose
+}
+
+# Grant IAM roles to service accounts for accessing the KMS key
+resource "google_kms_crypto_key_iam_binding" "instance-key-binding" {
+  crypto_key_id = google_kms_crypto_key.instance-key.id
+  role          = var.key_role
+  members       = [
+    "serviceAccount:${google_service_account.vm_service_account.email}",
+    "serviceAccount:${var.service_account_for_vm_key}"
+  ]
+}
+
+
+
+# output "vm_key_path" {
+#   value = google_kms_crypto_key.instance-key.id
 # }
-
-# resource "google_kms_crypto_key_iam_binding" "sql-key-binding" {
-#   crypto_key_id = google_kms_crypto_key.sql-key.id
-#   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-
-#   members = [
-#     "serviceAccount:${google_service_account.key_service_account.email}",
-#   ]
-# }
-
-# resource "google_kms_crypto_key_iam_binding" "storage-key-binding" {
-#   crypto_key_id = google_kms_crypto_key.storage-key.id
-#   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-
-#   members = [
-#     "serviceAccount:${google_service_account.key_service_account.email}",
-#   ]
-# }
-
-# resource "google_kms_crypto_key_iam_binding" "vm-key-binding" {
-#   crypto_key_id = google_kms_crypto_key.vm-key.id
-#   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-
-#   members = [
-#     "serviceAccount:${google_service_account.key_service_account.email}",
-#   ]
-# }
-
-# resource "google_project_iam_member" "sql_admin_binding" {
-#   project = var.project_id
-#   role    = "roles/cloudsql.admin"
-#   member  = "serviceAccount:${google_service_account.key_service_account.email}"
-# }
-
+#------------------------------------------------------------------------------------------------------------
 
 resource "google_secret_manager_secret" "secret-db-name" {
-  secret_id = "MYSQL_DATABASE"
+  secret_id = var.secret_id_db_name
   labels = {
-    label = "db-name"
+    label = var.db_label
   }
   replication {
     auto {}
@@ -613,9 +601,9 @@ resource "google_secret_manager_secret_version" "secret-version-basic" {
 }
 
 resource "google_secret_manager_secret" "secret-db-user" {
-  secret_id = "MYSQL_USER"
+  secret_id = var.secret_id_db_user
   labels = {
-    label = "db-user"
+    label = var.user_label
   }
   replication {
     auto {}
@@ -629,9 +617,9 @@ resource "google_secret_manager_secret_version" "secret-version-basic1" {
 }
 
 resource "google_secret_manager_secret" "secret-db-password" {
-  secret_id = "MYSQL_PASSWORD"
+  secret_id = var.secret_id_db_pass
   labels = {
-    label = "db-password"
+    label = var.pass_label
   }
   replication {
     auto {}
@@ -645,9 +633,9 @@ resource "google_secret_manager_secret_version" "secret-version-basic2" {
 }
 
 resource "google_secret_manager_secret" "secret-db-host" {
-  secret_id = "MYSQL_HOST"
+  secret_id = var.secret_id_db_host
   labels = {
-    label = "db-host"
+    label = var.host_label
   }
   replication {
     auto {}
@@ -661,9 +649,9 @@ resource "google_secret_manager_secret_version" "secret-version-basic3" {
 }
 
 resource "google_secret_manager_secret" "secret-db-env" {
-  secret_id = "ENV"
+  secret_id = var.secret_id_db_env
   labels = {
-    label = "prod-env"
+    label = var.env_label
   }
   replication {
     auto {}
@@ -673,10 +661,20 @@ resource "google_secret_manager_secret" "secret-db-env" {
 
 resource "google_secret_manager_secret_version" "secret-version-basic4" {
   secret      = google_secret_manager_secret.secret-db-env.id
-  secret_data = "ENV"
+  secret_data = var.secret_id_db_env
 }
 
-
+resource "google_secret_manager_secret" "instance-kms-key" {
+  secret_id = var.secret_id_kms_key
+  replication {
+    auto {}
+  }
+}
+ 
+resource "google_secret_manager_secret_version" "instance-kms-key-version" {
+  secret      = google_secret_manager_secret.instance-kms-key.id
+  secret_data = google_kms_crypto_key.instance-key.id
+}
 #------------------------------------------------------------------------------------------------------------
 
 #Firewall rules for the webapp
